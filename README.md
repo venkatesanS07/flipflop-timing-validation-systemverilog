@@ -4,7 +4,7 @@
 ---
 
 ## Aim  
-To validate the **timing of a Flip-Flop input** using **random data generation** in **SystemVerilog** and check **setup and hold constraints** using **ModelSim 2020.1**.
+To validate the timing of a Flip-Flop input using random data generation in SystemVerilog and check setup and hold constraints using Eda playground.
 
 ---
 
@@ -80,95 +80,71 @@ In this experiment:
 
 ### Flip-Flop Design (`flipflop.sv`)
 ```systemverilog
-module flipflop (
-    input  logic D,       
-    input  logic CLK,     
-    output logic Q        
-);
+module dff(D,clk,Q);
+input logic D;
+input logic clk;
+output logic Q;
 
-    always_ff @(posedge CLK) begin
-        Q <= D;
-    end
-
+  always_ff @(posedge clk) 
+   begin
+    Q <= D;
+  end
 endmodule
+
+class RandDelay;
+  rand int rand_delay;
+  constraint c_range { rand_delay inside {[-3:3]}; }
+endclass
+
 
 ```
 ### Testbench (`flipflop_tb.sv`)
 ```systemverilog
-module tb;
-    logic D;
-    logic CLK;
-    logic Q;
+module tb_dff;
 
-    flipflop uut (
-        .D(D),
-        .CLK(CLK),
-        .Q(Q)
-    );
+  logic D, clk, Q;
+  RandDelay rg;
+  parameter t_setup = 2;
+  parameter t_hold  = 1;
 
-    initial begin
-        CLK = 0;
-        forever #5 CLK = ~CLK;
-    end
+  dff uut(D,clk,Q);
 
-    initial begin
-        // Phase 1: Constant input
-        $display("\n--- Phase 1: Constant input ---");
-        D = 1;
-        #50;
-        D = 0;
-        #50;
-
-        // Phase 2: Slow toggle
-        $display("\n--- Phase 2: Slow toggle ---");
-        D = 0;
-        repeat (4) begin
-            @(posedge CLK);
-            @(posedge CLK);
-            D = ~D;
+  initial 
+   clk = 0;
+   always #5 clk = ~clk;
+initial 
+  begin
+    rg = new();
+    repeat (10) 
+   begin
+      if (!rg.randomize()) 
+        begin
+            $error("Randomization failed!");
         end
-
-        // Phase 3: Fast toggle
-        $display("\n--- Phase 3: Fast toggle ---");
-        D = 0;
-        repeat (10) begin
-            #2 D = ~D;
-        end
-        #20;
-
-        // Phase 4: Burst activity
-        $display("\n--- Phase 4: Burst activity ---");
-        D = 0;
-        repeat (3) begin
-            repeat (5) begin
-                #3 D = $random;
-            end
-            #30;
-        end
-
-        // Phase 5: Edge-aligned changes
-        $display("\n--- Phase 5: Edge-aligned changes ---");
-        D = 0;
-        repeat (6) begin
-            @(posedge CLK);
-            #0 D = ~D;
-        end
-
-        #50;
-        $finish;
-    end
-
-    initial begin
-        $dumpfile("wave.vcd");
-        $dumpvars(0, tb);
-    end
+    @(posedge clk);
+        #(rg.rand_delay) D = $urandom() % 2;
+if (rg.rand_delay < -t_setup)
+        $display("[%0t] SETUP VIOLATION: Data changed %0d ns before clk edge", $time, rg.rand_delay);
+ 
+else if (rg.rand_delay >= 0 && rg.rand_delay < t_hold)
+        $display("[%0t] HOLD VIOLATION: Data changed %0d ns after clk edge",$time, rg.rand_delay);
+     
+else
+        $display("[%0t] OK: Data stable within setup/hold window", $time);
+ 
+end
+$finish;
+end
 endmodule
 ```
 ---
 ### Simulation Output
 
-Simulation is carried out using ModelSim 2020.1.
-<img width="1920" height="1080" alt="Screenshot 2025-09-29 231640" src="https://github.com/user-attachments/assets/857f7ba8-9828-4a2b-a2a3-450042260b1e" />
+Simulation is carried out using EDA playground
+
+Verify setup and hold constraints for all random input patterns.
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/8e61fe87-bf02-45db-a7e5-8cd27bbfa732" />
+
 
 
 ---
