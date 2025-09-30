@@ -1,5 +1,6 @@
 # Experiment 4: Timing Validation of Flip-Flop Input using Random Data Generator for Setup and Hold Constraints
-
+# 212223060296
+# venkatesan s
 ---
 
 ## Aim  
@@ -80,62 +81,99 @@ In this experiment:
 ### Flip-Flop Design (`flipflop.sv`)
 ```systemverilog
 module flipflop (
-    input  logic D,       // Data input
-    input  logic CLK,     // Clock
-    output logic Q        // Flip-Flop output
+    input  logic D,       
+    input  logic CLK,     
+    output logic Q        
 );
 
-    // Implement Flip-Flop behavior
-    // Include D flip-flop logic
+    always_ff @(posedge CLK) begin
+        Q <= D;
+    end
+
 endmodule
+
 ```
 ### Testbench (`flipflop_tb.sv`)
 ```systemverilog
-module flipflop_tb;
-
-    // Declare signals
-    logic D, CLK;
+module tb;
+    logic D;
+    logic CLK;
     logic Q;
 
-    // Instantiate Flip-Flop
     flipflop uut (
         .D(D),
         .CLK(CLK),
         .Q(Q)
     );
 
-    // Random input generation and clock
     initial begin
         CLK = 0;
-        forever #5 CLK = ~CLK; // Clock generation
+        forever #5 CLK = ~CLK;
     end
 
     initial begin
-        // Apply random data to D
-        // Example:
-        // repeat(20) begin
-        //   D = $urandom_range(0,1);
-        //   #10;
-        // end
-        $stop; // End simulation
+        // Phase 1: Constant input
+        $display("\n--- Phase 1: Constant input ---");
+        D = 1;
+        #50;
+        D = 0;
+        #50;
+
+        // Phase 2: Slow toggle
+        $display("\n--- Phase 2: Slow toggle ---");
+        D = 0;
+        repeat (4) begin
+            @(posedge CLK);
+            @(posedge CLK);
+            D = ~D;
+        end
+
+        // Phase 3: Fast toggle
+        $display("\n--- Phase 3: Fast toggle ---");
+        D = 0;
+        repeat (10) begin
+            #2 D = ~D;
+        end
+        #20;
+
+        // Phase 4: Burst activity
+        $display("\n--- Phase 4: Burst activity ---");
+        D = 0;
+        repeat (3) begin
+            repeat (5) begin
+                #3 D = $random;
+            end
+            #30;
+        end
+
+        // Phase 5: Edge-aligned changes
+        $display("\n--- Phase 5: Edge-aligned changes ---");
+        D = 0;
+        repeat (6) begin
+            @(posedge CLK);
+            #0 D = ~D;
+        end
+
+        #50;
+        $finish;
     end
 
+    initial begin
+        $dumpfile("wave.vcd");
+        $dumpvars(0, tb);
+    end
 endmodule
 ```
 ---
 ### Simulation Output
 
 Simulation is carried out using ModelSim 2020.1.
+<img width="1920" height="1080" alt="Screenshot 2025-09-29 231640" src="https://github.com/user-attachments/assets/857f7ba8-9828-4a2b-a2a3-450042260b1e" />
 
-Waveforms will show Flip-Flop input, clock, and output.
-
-Verify setup and hold constraints for all random input patterns.
-
-(Insert waveform screenshot here after running simulation in ModelSim)
 
 ---
 
 ### Result
 
-The timing validation of Flip-Flop input using random data generation was successfully carried out in SystemVerilog HDL with ModelSim 2020.1.
+
 The Flip-Flop maintained correct output behavior, and setup and hold times were verified for all random input cases.
